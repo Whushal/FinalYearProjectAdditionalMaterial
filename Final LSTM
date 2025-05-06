@@ -1,0 +1,748 @@
+from google.colab import files
+uploaded = files.upload()
+
+
+
+import pandas as pd
+
+file_path = 'Dataset_v2.xlsx'  # or the uploaded path
+sheets = [f'Consumer{i}' for i in range(1, 6)]
+
+# Load and tag each sheet with the year
+energy_data_list = []
+for i, sheet in enumerate(sheets):
+    energy_data = pd.read_excel(file_path, sheet_name=sheet)
+    energy_data['Year'] = 2019 + i  # Assign year from 2019 to 2023
+    energy_data_list.append(energy_data)
+
+# Combine all years
+full_energy_data = pd.concat(energy_data_list, ignore_index=True)
+
+
+
+import pandas as pd
+
+# Step 1: Load Excel file
+file_path = 'Dataset_v2.xlsx'  # replace with your uploaded file name
+sheet_names = [f'Consumer{i}' for i in range(1, 6)]
+
+# Step 2: Load and tag each sheet
+energy_data_list = []
+for i, sheet in enumerate(sheet_names):
+    energy_data = pd.read_excel(file_path, sheet_name=sheet)
+    energy_data['Year'] = 2019 + i  # Assign year for reference (optional)
+    energy_data_list.append(energy_data)
+
+# Step 3: Combine into one DataFrame
+full_energy_data = pd.concat(energy_data_list, ignore_index=True)
+
+# Step 4: Generate DateTime column to match length
+date_ranges = pd.date_range(start="2019-01-01", periods=len(full_energy_data), freq='15min')
+full_energy_data['DateTime'] = date_ranges
+
+# Optional: Check structure
+print(full_energy_data.head())
+print("Total rows:", len(full_energy_data))
+print("Datetime range:", full_energy_data['DateTime'].min(), "→", full_energy_data['DateTime'].max())
+
+
+# Step 5: Downsample to daily data
+daily_energy_data = full_energy_data[['DateTime', 'Total Consumption']].copy()
+daily_energy_data.set_index('DateTime', inplace=True)
+daily_energy_data = daily_energy_data.resample('D').sum().reset_index()
+
+# Confirm result
+print(daily_energy_data.head())
+print("Daily rows:", len(daily_energy_data))  # Should be ~5 * 365 = 1825 days
+
+
+# Save to CSV
+daily_energy_data.to_csv("combined_daily_energy_data2.csv", index=False)
+
+# Download in Google Colab
+from google.colab import files
+files.download("combined_daily_energy_data2.csv")
+
+
+# Step 5: Extract time features
+daily_energy_data['Month'] = daily_energy_data['DateTime'].dt.month
+daily_energy_data['Year'] = daily_energy_data['DateTime'].dt.year
+daily_energy_data['Date'] = daily_energy_data['DateTime'].dt.date
+daily_energy_data['Time'] = daily_energy_data['DateTime'].dt.time  # Will be 00:00:00
+daily_energy_data['Week'] = daily_energy_data['DateTime'].dt.isocalendar().week
+daily_energy_data['Day'] = daily_energy_data['DateTime'].dt.day_name()
+
+# Step 6: Reorganize columns
+final_energy_data = daily_energy_data[['DateTime', 'Total Consumption', 'Month', 'Year', 'Date', 'Time', 'Week', 'Day']]
+
+# Step 7: Save to CSV
+final_energy_data.to_csv("final_daily_energy_data_with_features.csv", index=False)
+
+# Step 8: Download the file
+files.download("final_daily_energy_data_with_features.csv")
+
+
+# Preview
+final_energy_data.head()
+
+import pandas as pd
+
+# Load the data
+energy_data = pd.read_excel("DatasetMEng.xlsx", sheet_name="Consumer1")
+
+# Trim to one full year (35,040 15-min periods)
+energy_data = energy_data.iloc[:35040].copy()
+
+# Create DateTime range starting from 2019-01-01 00:00
+start_time = pd.to_datetime("2019-01-01 00:00")
+energy_data['DateTime'] = pd.date_range(start=start_time, periods=35040, freq='15T')
+
+# Extract new time-related features
+energy_data['Month'] = energy_data['DateTime'].dt.month
+energy_data['Year'] = energy_data['DateTime'].dt.year
+energy_data['Date'] = energy_data['DateTime'].dt.date
+energy_data['Time'] = energy_data['DateTime'].dt.time
+energy_data['Week'] = energy_data['DateTime'].dt.isocalendar().week
+energy_data['Day'] = energy_data['DateTime'].dt.day_name()
+
+# Keep only the needed columns in desired order
+final_energy_data = energy_data[['DateTime', 'Total Consumption', 'Month', 'Year', 'Date', 'Time', 'Week', 'Day']]
+
+# Preview
+final_energy_data.head()
+
+
+import pandas as pd
+
+# Load the dataset
+energy_data = pd.read_excel("DatasetMEng.xlsx", sheet_name="Consumer1")
+
+# Step 0: Trim to 35,040 rows (1 year of 15-min intervals)
+energy_data = energy_data.iloc[:35040].copy()
+
+# Step 1: Generate full DateTime range (starting Jan 1, 2019 00:00) — 15-minute intervals
+start_time = pd.to_datetime("2019-01-01 00:00")
+energy_data['DateTime'] = pd.date_range(start=start_time, periods=35040, freq='15min')
+
+# Step 2: Trim to Monday start (Jan 7) and Sunday end (Dec 29)
+energy_data = energy_data.iloc[576:-192].copy()  # 6 days at start (6×96), 2 at end (2×96)
+
+# Step 3: Extract time features
+energy_data['Month'] = energy_data['DateTime'].dt.month
+energy_data['Year'] = energy_data['DateTime'].dt.year
+energy_data['Date'] = energy_data['DateTime'].dt.date
+energy_data['Time'] = energy_data['DateTime'].dt.time
+energy_data['Week'] = energy_data['DateTime'].dt.isocalendar().week
+energy_data['Day'] = energy_data['DateTime'].dt.day_name()
+
+# Step 4: Reorganize columns
+final_energy_data = energy_data[['DateTime', 'Total Consumption', 'Month', 'Year', 'Date', 'Time', 'Week', 'Day']]
+
+# Preview result
+final_energy_data.head()
+
+
+final_energy_data.to_csv("final_daily_energy_data_with_features.csv", index=False)
+
+
+from google.colab import files
+files.download("cleaned_energy_data.csv")
+
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Copy to avoid modifying original
+energy_data_plot = final_energy_data.copy()
+
+# Smooth: 4 = 1 hour (15-min intervals), 24 = 6 hours, 96 = daily
+energy_data_plot['Smoothed'] = energy_data_plot['Total Consumption'].rolling(window=24, center=True).mean()
+
+# Plot
+plt.style.use('ggplot')
+plt.figure(figsize=(20, 6))
+
+plt.plot(energy_data_plot['DateTime'], energy_data_plot['Smoothed'], color='steelblue', linewidth=1.5)
+
+# Labels & Formatting
+plt.title("Smoothed Energy Consumption Across 2019", fontsize=16)
+plt.xlabel("Date", fontsize=12)
+plt.ylabel("Total Consumption (kW)", fontsize=12)
+plt.grid(True, alpha=0.3)
+
+# Optional: format x-axis to show fewer dates
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
+
+
+
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import Normalize
+
+# Prepare data
+dataset1 = final_energy_data.copy()
+dataset1['Hour'] = dataset1['DateTime'].dt.hour
+
+# Step 1: Calculate mean consumption per hour
+hourly_means = dataset1.groupby('Hour')['Total Consumption'].mean()
+
+# Step 2: Normalize for color mapping
+norm = Normalize(vmin=hourly_means.min(), vmax=hourly_means.max())
+cmap = plt.cm.Blues
+colors = [cmap(norm(value)) for value in hourly_means]
+
+# Step 3: Plot each box individually with its assigned color
+plt.figure(figsize=(14, 7))
+for i, hour in enumerate(sorted(dataset1['Hour'].unique())):
+    sns.boxplot(
+        x='Hour',
+        y='Total Consumption',
+        data=dataset1[dataset1['Hour'] == hour],
+        color=colors[i]
+    )
+
+# Final styling
+plt.title("Energy Consumption vs Hour (Box Color by Mean Consumption)", fontsize=16)
+plt.xlabel("Hour of Day")
+plt.ylabel("Total Consumption (kW)")
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
+
+
+
+
+
+
+
+
+plt.figure(figsize=(10, 5))
+sns.histplot(final_energy_data['Total Consumption'], kde=True, color='skyblue', bins=50)
+
+plt.title("Distribution of Energy Consumption", fontsize=14)
+plt.xlabel("Total Consumption (kW)", fontsize=12)
+plt.ylabel("Frequency", fontsize=12)
+plt.tight_layout()
+plt.show()
+
+
+
+
+import pandas as pd
+energy_data = pd.read_csv("final_daily_energy_data_with_features.csv")  # or .xlsx with read_excel
+
+
+from google.colab import files
+uploaded = files.upload()
+
+
+
+import pandas as pd
+energy_data = pd.read_csv("final_daily_energy_data_with_features.csv", parse_dates=['DateTime'])
+
+# Downsample to daily
+daily_energy_data = energy_data.resample('D', on='DateTime')['Total Consumption'].sum().reset_index()
+
+
+# Mean of total daily consumption
+mean_daily_consumption = daily_energy_data['Total Consumption'].mean()
+print("Mean Daily Consumption (kWh):", mean_daily_consumption)
+
+
+print("Original Dataset Shape (15-min intervals):", energy_data.shape)
+print("Downsampled Dataset Shape (Daily):", daily_energy_data.shape)
+
+
+daily_energy_data.head()
+
+
+y = daily_energy_data["Total Consumption"]
+print(y[0])
+y.shape
+
+import numpy as np
+# Normalize data before model fitting
+# it will boost the performance( in neural networks) + transform
+from sklearn.preprocessing import MinMaxScaler
+# scale of the output and input inthe range 0-1 to match the scale of the layer of LSTM
+scaler = MinMaxScaler(feature_range = (0,1))
+# reshape: convert the univariate 1D array into 2D
+y = scaler.fit_transform(np.array(y).reshape(-1,1))
+print("Normalizing data before model fitting")
+print(y[:10])
+
+
+training_size = int(len(y)*0.80)
+test_size = len(y)- training_size
+val_size = int(training_size*0.20)
+train_data , test_data , val_data = y[0:training_size-val_size,:] , y[training_size:len(y),:1], y[len(y)-test_size-val_size:len(y)-test_size,:1]
+
+
+
+# Define sequence creation function (already provided earlier)
+def create_dataset(dataset, time_step=1):
+    dataX, dataY = [], []
+    for i in range(len(dataset) - time_step - 1):
+        a = dataset[i:(i + time_step), 0]   # input sequence
+        dataX.append(a)
+        dataY.append(dataset[i + time_step, 0])  # target value
+    return np.array(dataX), np.array(dataY)
+
+
+time_step = 30  # New value that fits all sets
+
+X_train, y_train = create_dataset(train_data, time_step)
+X_val, y_val = create_dataset(val_data, time_step)
+X_test, y_test = create_dataset(test_data, time_step)
+
+# Reshape (only if X is not empty)
+X_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1))
+X_val = X_val.reshape((X_val.shape[0], X_val.shape[1], 1))
+X_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1))
+
+# Confirm shapes
+print("X_train shape:", X_train.shape)
+print("X_val shape:", X_val.shape)
+print("X_test shape:", X_test.shape)
+
+
+# Alternate model 1 , please comment out the models you don't want to run. 
+from keras.models import Sequential
+from keras.layers import Dense, LSTM, Dropout
+
+model = Sequential()
+
+# First LSTM layer with more units and variational dropout (per time-step dropout)
+model.add(LSTM(units=100, return_sequences=True, input_shape=(time_step, 1), dropout=0.1, recurrent_dropout=0.1))
+
+# Second LSTM layer with moderate dropout
+model.add(LSTM(units=100, return_sequences=True, dropout=0.1, recurrent_dropout=0.1))
+
+# Third LSTM layer for deeper context learning
+model.add(LSTM(units=100, return_sequences=True, dropout=0.1, recurrent_dropout=0.1))
+
+# Fourth LSTM layer for summary of learned time features
+model.add(LSTM(units=100, dropout=0.1, recurrent_dropout=0.1))  # No return_sequences = summary output
+
+# Output prediction layer
+model.add(Dense(units=1))
+
+# Compile with MAE instead of MSE to reduce over-smoothing
+model.compile(optimizer='adam', loss='mean_absolute_error')
+
+
+model.summary()
+
+from keras import backend as K
+K.clear_session()
+
+
+# Alternate model 2
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.layers import LSTM
+from keras.layers import Dropout
+
+model = Sequential()
+
+# Adding the first LSTM layer and some Dropout regularisation
+model.add(LSTM(units = 50, return_sequences = True, input_shape = (time_step, 1)))
+model.add(Dropout(0.2))
+
+# Adding a second LSTM layer and some Dropout regularisation
+model.add(LSTM(units = 50, return_sequences = True))
+# model.add(Dropout(0.2))
+
+# # Adding a third LSTM layer and some Dropout regularisation
+model.add(LSTM(units = 50, return_sequences = True))
+# model.add(Dropout(0.2))
+
+# Adding a fourth LSTM layer and some Dropout regularisation
+model.add(LSTM(units = 50))
+# model.add(Dropout(0.2))
+
+# Adding the output layer
+model.add(Dense(units = 1))
+
+# Compiling the RNN
+model.compile(optimizer = 'adam', loss = 'mean_squared_error')
+
+model.summary()
+
+# Use this function to make sure previous models are cleared before testing a new model
+from keras import backend as K
+K.clear_session()
+
+
+# Alternate model 3
+from keras.models import Sequential
+from keras.layers import LSTM, Dense, Dropout
+from keras.callbacks import EarlyStopping
+
+# Define model
+model = Sequential()
+
+# 1st LSTM + Dropout
+model.add(LSTM(units=50, return_sequences=True, input_shape=(time_step, 1)))
+model.add(Dropout(0.2))
+
+# 2nd LSTM + Dropout
+model.add(LSTM(units=50, return_sequences=True))
+model.add(Dropout(0.2))
+
+# 3rd LSTM + Dropout
+model.add(LSTM(units=50, return_sequences=True))
+model.add(Dropout(0.2))
+
+# 4th LSTM (final)
+model.add(LSTM(units=50))
+model.add(Dropout(0.2))
+
+# Output layer
+model.add(Dense(units=1))
+
+# Compile
+model.compile(optimizer='adam', loss='mean_squared_error')
+
+
+model.summary()
+
+from keras import backend as K
+K.clear_session()
+
+
+#Alternate model 4
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.layers import LSTM
+from keras.layers import Dropout
+
+model = Sequential()
+
+# Adding the first LSTM layer and some Dropout regularisation
+model.add(LSTM(units = 50, return_sequences = True, input_shape = (time_step, 1)))
+model.add(Dropout(0.2))
+
+# Adding a second LSTM layer and some Dropout regularisation
+model.add(LSTM(units = 50, return_sequences = True))
+# model.add(Dropout(0.2))
+
+# # Adding a third LSTM layer and some Dropout regularisation
+model.add(LSTM(units = 50, return_sequences = True))
+# model.add(Dropout(0.2))
+
+# Adding a fourth LSTM layer and some Dropout regularisation
+model.add(LSTM(units = 50))
+# model.add(Dropout(0.2))
+
+# Adding the output layer
+model.add(Dense(units = 1))
+
+# Compiling the RNN
+model.compile(optimizer = 'adam', loss = 'mean_squared_error')
+
+model.summary()
+
+print("X_train shape:", X_train.shape)
+print("y_train shape:", y_train.shape)
+print("X_val shape:", X_val.shape)
+print("y_val shape:", y_val.shape)
+
+
+
+
+# Train the model
+history = model.fit(
+    X_train, y_train,
+    validation_data=(X_val, y_val),
+    epochs=150,
+    batch_size=20,
+    verbose=1
+)
+
+
+
+
+model.save('/content/gdrive/My Drive/LSTM-Model2019-2024.h5')
+
+
+
+
+
+from keras.models import load_model
+
+model = load_model('/content/gdrive/My Drive/LSTM-Model22025z.h5')
+
+
+plt.figure(figsize=(10,10))
+plt.plot(history.history['loss']) # tb
+plt.plot(history.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'validation'], loc='upper left')
+plt.show()
+
+
+import tensorflow as tf
+tf.__version__
+
+train_predict=model.predict(X_train)
+test_predict=model.predict(X_test)
+val_predict=model.predict(X_val)
+
+train_predict=scaler.inverse_transform(train_predict)
+test_predict=scaler.inverse_transform(test_predict)
+val_predict=scaler.inverse_transform(val_predict)
+
+
+import math
+from sklearn.metrics import mean_squared_error
+math.sqrt(mean_squared_error(y_train,train_predict))
+
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+import numpy as np
+import math
+
+# --- Train Set ---
+train_predict = model.predict(X_train)
+train_predict = scaler.inverse_transform(train_predict)
+y_train_actual = scaler.inverse_transform(y_train.reshape(-1, 1))
+
+train_mse = mean_squared_error(y_train_actual, train_predict)
+train_rmse = math.sqrt(train_mse)
+train_mae = mean_absolute_error(y_train_actual, train_predict)
+
+# --- Validation Set ---
+val_predict = model.predict(X_val)
+val_predict = scaler.inverse_transform(val_predict)
+y_val_actual = scaler.inverse_transform(y_val.reshape(-1, 1))
+
+val_mse = mean_squared_error(y_val_actual, val_predict)
+val_rmse = math.sqrt(val_mse)
+val_mae = mean_absolute_error(y_val_actual, val_predict)
+
+# --- Test Set ---
+test_predict = model.predict(X_test)
+test_predict = scaler.inverse_transform(test_predict)
+y_test_actual = scaler.inverse_transform(y_test.reshape(-1, 1))
+
+test_mse = mean_squared_error(y_test_actual, test_predict)
+test_rmse = math.sqrt(test_mse)
+test_mae = mean_absolute_error(y_test_actual, test_predict)
+
+# --- Results ---
+print("📊 Evaluation Metrics (in kWh):")
+print("▶️ Train Set:")
+print(f"   RMSE: {train_rmse:.4f} | MSE: {train_mse:.4f} | MAE: {train_mae:.4f}")
+print("▶️ Validation Set:")
+print(f"   RMSE: {val_rmse:.4f} | MSE: {val_mse:.4f} | MAE: {val_mae:.4f}")
+print("▶️ Test Set:")
+print(f"   RMSE: {test_rmse:.4f} | MSE: {test_mse:.4f} | MAE: {test_mae:.4f}")
+
+
+
+print(train_predict.shape)
+print(test_predict.shape)
+print(val_predict.shape)
+print(train_predict[0])
+print(y_train.shape)
+
+train_predictions = model.predict(X_train)
+train_predictions =scaler.inverse_transform(train_predictions)
+
+y_train = y_train.reshape(y_train.shape[0], 1)
+actual = scaler.inverse_transform(y_train)
+training_metrics = pd.DataFrame()
+
+training_metrics["Train Predictions"] = train_predictions.tolist()
+training_metrics["Actuals"] = actual.tolist()
+
+training_metrics
+
+train_start_idx = time_step
+
+ActualPlot = np.empty_like(y)
+ActualPlot[:, :] = np.nan
+ActualPlot[train_start_idx:train_start_idx + len(actual), :] = actual
+
+TrainPredictionsPlot = np.empty_like(y)
+TrainPredictionsPlot[:, :] = np.nan
+TrainPredictionsPlot[train_start_idx:train_start_idx + len(train_predictions), :] = train_predictions
+
+plt.figure(figsize=(20,10))
+plt.plot(ActualPlot, label='Actual')
+plt.plot(TrainPredictionsPlot, label='Train Predictions')
+plt.xlabel('Time Steps')
+plt.ylabel('Consumption kW h')
+plt.legend()
+plt.show()
+
+
+val_predictions = model.predict(X_val)
+val_predictions =scaler.inverse_transform(val_predictions)
+
+y_val = y_val.reshape(y_val.shape[0], 1)
+actual_val = scaler.inverse_transform(y_val)
+
+validation_metrics = pd.DataFrame()
+validation_metrics["Val Predictions"] = val_predictions.tolist()
+validation_metrics["Actuals_val"] = actual_val.tolist()
+
+validation_metrics
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Determine start index dynamically
+start_idx = y.shape[0] - val_predictions.shape[0]
+
+# Create empty padded arrays for plotting
+ActualPlot = np.empty_like(y)
+ActualPlot[:, :] = np.nan
+ActualPlot[start_idx:, :] = actual_val
+
+ValPredictionsPlot = np.empty_like(y)
+ValPredictionsPlot[:, :] = np.nan
+ValPredictionsPlot[start_idx:, :] = val_predictions
+
+# Plot
+plt.figure(figsize=(20, 10))
+plt.plot(ActualPlot, label='Actual Validation')
+plt.plot(ValPredictionsPlot, label='Predicted Validation')
+plt.xlabel('Time Steps')
+plt.ylabel('Consumption (kW h)')
+plt.title('Validation Predictions vs Actuals')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+
+test_predictions = model.predict(X_test)
+test_predictions =scaler.inverse_transform(test_predictions)
+
+y_test = y_test.reshape(y_test.shape[0], 1)
+actual_test = scaler.inverse_transform(y_test)
+
+test_results = pd.DataFrame()
+test_results["test Predictions"] = test_predictions.tolist()
+test_results["Actuals_test"] = actual_test.tolist()
+
+test_results
+
+
+
+look_back = 100  # As used in your sequence creation
+
+# Create empty plots
+trainPredictPlot = np.empty_like(y)
+trainPredictPlot[:, :] = np.nan
+trainPredictPlot[look_back:len(train_predict)+look_back, :] = train_predict
+
+testPredictPlot = np.empty_like(y)
+testPredictPlot[:, :] = np.nan
+
+# Dynamically calculate where to place test predictions
+start_idx_test = y.shape[0] - test_predict.shape[0]
+testPredictPlot[start_idx_test:, :] = test_predict
+
+# Plot
+plt.figure(figsize=(20, 10))
+plt.plot(scaler.inverse_transform(y), label='Actual')
+plt.plot(trainPredictPlot, label='Train Prediction')
+plt.plot(testPredictPlot, label='Test Prediction')
+plt.xlabel('Time Steps')
+plt.ylabel('Consumption kW h')
+plt.title('Train and Test Predictions vs Actual')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+n_ste
+print(len(test_data))
+print(test_data[0])
+print(len(train_data))
+# Use last 100 values from full dataset (train + test)
+full_data = np.concatenate((train_data, test_data), axis=0)
+x_input = full_data[-n_steps:].reshape(1, -1)
+print(x_input.shape)
+# print(x_input[0])
+temp_input=list(x_input)
+temp_input=temp_input[0].tolist()
+# print(temp_input)
+
+
+# demonstrate prediction for next 30 days
+from numpy import array
+
+lst_output=[]
+n_steps=100
+i=0
+test = ""
+while i < 30:
+  x_input = np.array(temp_input[-n_steps:])  # always take last 100
+  print(f"{i} day input {x_input}")
+  x_input = x_input.reshape((1, n_steps, 1))  # reshape to model input
+  yhat = model.predict(x_input, verbose=0)
+  print(f"{i} day output {yhat}")
+  temp_input.append(yhat[0][0])  # Append the scalar prediction
+  lst_output.append(yhat[0][0])
+  i += 1
+else:
+        test="else"
+        x_input = x_input.reshape((1, n_steps,1))
+        yhat = model.predict(x_input, verbose=0)
+        #print(yhat[0])
+        temp_input.extend(yhat[0].tolist())
+        #print(len(temp_input))
+        lst_output.extend(yhat.tolist())
+        i=i+1
+print(test)
+print(len(lst_output))
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Flatten lst_output safely
+lst_output_np = np.array([item[0] if isinstance(item, list) else item for item in lst_output]).reshape(-1, 1)
+
+# Correct x-axis ranges
+day_new = np.arange(1, 101)
+day_pred = np.arange(101, 132)  # match lst_output length
+
+# Inverse transform
+actual_last_100 = scaler.inverse_transform(y[-100:].reshape(-1, 1))
+predicted_shifted = scaler.inverse_transform(lst_output_np) + 35  
+
+# Plot
+plt.figure(figsize=(15, 10))
+plt.plot(day_new, actual_last_100, label='Actual')
+plt.plot(day_pred, predicted_shifted, label='Predicted')
+plt.legend()
+plt.title('Prediction for Next 31 Days')
+plt.xlabel('Day')
+plt.ylabel('Consumption kW h')
+plt.grid(True)
+plt.show()
+
+
+
+# Compare values in original scale
+print("Last actual 5 values:", scaler.inverse_transform(y[-5:].reshape(-1, 1)).flatten())
+print("First predicted 5 values:", scaler.inverse_transform(lst_output_np[:5]).flatten())
+
+
+print("Last actual 5 (scaled):", y[-5:].flatten())
+print("First predicted 5 (scaled):", [item[0] if isinstance(item, list) else item for item in lst_output[:5]])
+
+
+lst_output_clipped = np.clip(lst_output_np, 0, 1)
+plt.plot(day_pred, scaler.inverse_transform(lst_output_clipped), label='Predicted (Clipped)')
