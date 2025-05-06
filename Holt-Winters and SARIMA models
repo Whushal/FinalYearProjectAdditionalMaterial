@@ -1,0 +1,151 @@
+import pandas as pd
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+import numpy as np
+
+class TimeSeries:
+    def __init__(self, filename, train_size=0.7):
+      self.data = pd.read_csv(filename)
+
+      # Rename for consistency
+      self.data.rename(columns={'DateTime': 'date', 'Total Consumption': 'values'}, inplace=True)
+      self.data['date'] = pd.to_datetime(self.data['date'])
+
+      # Set datetime index
+      self.data.set_index('date', inplace=True)
+
+      if train_size > 1 or train_size < 0:
+          raise Exception("Invalid train_size, should be a float between 0.0 and 1.0")
+
+      no_of_rows_in_dataset = self.data.shape[0]
+      split_index = int(no_of_rows_in_dataset * train_size)
+
+      # Extract only the 'values' column
+      self.train = self.data.iloc[:split_index]['values']
+      self.test = self.data.iloc[split_index - 1:]['values']
+
+
+    def set_scale(self, factor=1):
+        self.train /= factor
+        self.test /= factor
+
+    def holt_winters_forecast(self, seasonal_periods=96, seasonal='add'):
+        """
+        Apply Holt-Winters Exponential Smoothing to the training data and forecast on test data.
+
+        Parameters:
+        ----------
+        seasonal_periods : int
+            Number of periods in a season (e.g., 96 for 15-min intervals per day, 7 for daily week pattern)
+        seasonal : str
+            'add' for additive, 'mul' for multiplicative seasonality
+        """
+        model = ExponentialSmoothing(
+            self.train,
+            seasonal_periods=seasonal_periods,
+            trend='add',
+            seasonal=seasonal
+        ).fit()
+
+        forecast = model.forecast(len(self.test))
+        self.test_forecast = forecast
+
+        # Evaluation
+        rmse = np.sqrt(mean_squared_error(self.test, forecast))
+        mae = mean_absolute_error(self.test, forecast)
+
+        print(f'Holt-Winters RMSE: {rmse:.2f}')
+        print(f'Holt-Winters MAE: {mae:.2f}')
+        return forecast
+
+
+from google.colab import files
+uploaded = files.upload()
+
+
+ts = TimeSeries('final_daily_energy_data_with_features (1).csv', train_size=0.8)
+ts.set_scale(1)  # Optional
+forecast = ts.holt_winters_forecast(seasonal_periods=96, seasonal='add')
+
+
+import pandas as pd
+import matplotlib.pyplot as plt
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+import numpy as np
+
+# Load your data
+df = pd.read_csv('final_daily_energy_data_with_features (1).csv')
+df['DateTime'] = pd.to_datetime(df['DateTime'])
+df.set_index('DateTime', inplace=True)
+data = df['Total Consumption']
+
+# Split into train and test
+train_size = int(len(data) * 0.8)
+train, test = data.iloc[:train_size], data.iloc[train_size:]
+
+# Fit the model
+model = ExponentialSmoothing(train, seasonal='add', seasonal_periods=96)
+fit = model.fit()
+forecast = fit.forecast(len(test))
+
+# Plot
+plt.figure(figsize=(15,5))
+plt.plot(train.index, train, label='Train')
+plt.plot(test.index, test, label='Test')
+plt.plot(test.index, forecast, label='Holt-Winters Forecast', linestyle='--')
+plt.title('Holt-Winters Forecast vs Actual Energy Consumption')
+plt.xlabel('Time')
+plt.ylabel('Energy Consumption (kWh)')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# Evaluation
+rmse = np.sqrt(mean_squared_error(test, forecast))
+mae = mean_absolute_error(test, forecast)
+print(f'RMSE: {rmse:.2f}')
+print(f'MAE: {mae:.2f}')
+
+
+import pandas as pd
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Load and prepare your dataset
+df = pd.read_csv('final_daily_energy_data_with_features (1).csv', parse_dates=['DateTime'])
+df.set_index('DateTime', inplace=True)
+ts_data = df['Total Consumption'].resample('D').sum()
+
+# Train/Test split (simplified for quick run)
+train = ts_data[:-15]
+test = ts_data[-15:]
+
+# Fit SARIMA model (smaller seasonal order to reduce compute)
+model = SARIMAX(train, order=(1,1,1), seasonal_order=(0,1,1,7), enforce_stationarity=False, enforce_invertibility=False)
+results = model.fit(disp=False)
+
+# Forecast next 15 days
+forecast = results.forecast(steps=15)
+
+# Evaluate
+rmse = np.sqrt(mean_squared_error(test, forecast))
+mae = mean_absolute_error(test, forecast)
+print(f"SARIMA RMSE: {rmse:.2f}")
+print(f"SARIMA MAE: {mae:.2f}")
+
+# Plot
+plt.figure(figsize=(12, 6))
+plt.plot(train.index[-60:], train[-60:], label='Train')
+plt.plot(test.index, test, label='Actual')
+plt.plot(test.index, forecast, label='Forecast', linestyle='--')
+plt.title('SARIMA Forecast vs Actual')
+plt.xlabel('Date')
+plt.ylabel('Energy Consumption')
+plt.legend()
+plt.grid(True)
+plt.show()
+
